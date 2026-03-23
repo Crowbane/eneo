@@ -144,7 +144,7 @@
 
 <div class="mx-auto flex h-full w-full max-w-[960px] flex-col p-0 md:px-4 md:py-3">
   <div
-    class="chat-container relative flex min-h-0 flex-1 flex-col overflow-hidden md:rounded-xl"
+    class="chat-container relative flex min-h-0 flex-1 flex-col overflow-hidden md:rounded-sm"
   >
     <!-- Header -->
     <header class="border-default z-10 flex items-center gap-3 border-b px-4 py-3 md:px-6 md:py-4">
@@ -210,7 +210,7 @@
               <img
                 src="{data.baseUrl}/api/v1/icons/{data.assistant.icon_id}/"
                 alt=""
-                class="h-20 w-20 rounded-2xl object-cover shadow-sm"
+                class="h-20 w-20 rounded-xl object-cover shadow-sm"
               />
             {/if}
             <div>
