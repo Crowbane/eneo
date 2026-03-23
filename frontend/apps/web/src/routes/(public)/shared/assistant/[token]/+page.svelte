@@ -231,7 +231,7 @@
 
     <!-- Input area (outside scroll container) -->
     <div
-      class="relative flex flex-col items-center gap-2 border-t border-transparent px-2 pt-2 pb-2 md:gap-3 md:px-6 md:pb-4"
+      class="relative flex flex-col items-center gap-3 border-t border-transparent px-2 pt-2 pb-4 md:gap-4 md:px-6 md:pb-6"
     >
       {#if showScrollToBottom}
         <div transition:fade={{ duration: 150 }} class="absolute -top-12 left-1/2 -translate-x-1/2">
@@ -284,7 +284,7 @@
         </div>
       </form>
 
-      <div class="flex items-center justify-center opacity-40">
+      <div class="flex items-center justify-center pt-1 opacity-40">
         <EneoWordMark class="text-brand-intric h-4 w-16" />
       </div>
     </div>
