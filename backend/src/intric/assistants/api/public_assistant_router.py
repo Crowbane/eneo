@@ -1,9 +1,11 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends
 from sse_starlette import EventSourceResponse, ServerSentEvent
 
 from intric.assistants.api.assistant_models import PublicAskRequest, PublicAssistantView
+from intric.questions.question import Question
+from intric.sessions.session import SessionInDB
 from intric.database.database import AsyncSession, get_session_with_transaction
 from intric.database.transaction import gen_transaction
 from intric.main.container.container import Container
@@ -57,11 +59,32 @@ async def ask_public_assistant(
     completion_service = container.completion_service()
     references_service = container.references_service()
 
+    # Build in-memory session from conversation history (not persisted)
+    session = None
+    if ask.messages:
+        questions = [
+            Question(
+                id=uuid4(),
+                question=msg.question,
+                answer=msg.answer,
+                num_tokens_question=0,
+                num_tokens_answer=0,
+                tenant_id=uuid4(),
+            )
+            for msg in ask.messages
+        ]
+        session = SessionInDB(
+            id=uuid4(),
+            name="public_chat",
+            user_id=owner_user_id,
+            questions=questions,
+        )
+
     response, datastore_result = await assistant.ask(
         question=ask.question,
         completion_service=completion_service,
         references_service=references_service,
-        session=None,
+        session=session,
         files=[],
         stream=ask.stream,
         version=2,

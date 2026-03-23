@@ -54,6 +54,17 @@
 
     abortController = new AbortController();
 
+    // Build conversation history from completed message pairs
+    const history: { question: string; answer: string }[] = [];
+    for (let i = 0; i < messages.length - 2; i += 2) {
+      if (messages[i].role === "user" && messages[i + 1]?.role === "assistant" && messages[i + 1].content) {
+        history.push({
+          question: messages[i].content,
+          answer: messages[i + 1].content
+        });
+      }
+    }
+
     try {
       const res = await fetch(
         `${data.baseUrl}/api/v1/public/assistants/${data.token}/ask/`,
@@ -63,7 +74,7 @@
             "Content-Type": "application/json",
             Accept: "text/event-stream"
           },
-          body: JSON.stringify({ question, stream: true }),
+          body: JSON.stringify({ question, stream: true, messages: history }),
           signal: abortController.signal
         }
       );

@@ -328,10 +328,16 @@ class PublicAssistantView(BaseModel):
     icon_id: Optional[UUID] = None
 
 
+class PublicChatMessage(BaseModel):
+    question: str
+    answer: str
+
+
 class PublicAskRequest(BaseModel):
     """Request model for public assistant chat."""
     question: str
     stream: bool = True
+    messages: list[PublicChatMessage] = []
 
 
 class DefaultAssistant(AssistantPublic):
