@@ -17,6 +17,7 @@
   import PromptVersionDialog from "$lib/features/prompts/components/PromptVersionDialog.svelte";
   import dayjs from "dayjs";
   import PublishingSetting from "$lib/features/publishing/components/PublishingSetting.svelte";
+  import PublicSharingSetting from "$lib/features/publishing/components/PublicSharingSetting.svelte";
   import { page } from "$app/state";
   import { getChatQueryParams } from "$lib/features/chat/getChatQueryParams.js";
   import { supportsTemperature } from "$lib/features/ai-models/supportsTemperature.js";
@@ -481,6 +482,16 @@
                 hasUnsavedChanges={$currentChanges.hasUnsavedChanges}
               />
             </Settings.Row>
+
+            {#if !data.currentSpace.personal}
+              <Settings.Row title={m.public_sharing()} description={m.public_sharing_description()}>
+                <PublicSharingSetting
+                  endpoints={data.intric.assistants}
+                  assistant={data.assistant}
+                  hasUnsavedChanges={$currentChanges.hasUnsavedChanges}
+                />
+              </Settings.Row>
+            {/if}
           {/if}
 
           <Settings.Row

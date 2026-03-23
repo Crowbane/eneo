@@ -9,6 +9,7 @@ from intric.analysis.analysis_router import router as analysis_router
 from intric.apps.app_runs.api.app_run_router import router as app_run_router
 from intric.apps.apps.api.app_router import router as app_router
 from intric.assistants.api.assistant_router import router as assistants_router
+from intric.assistants.api.public_assistant_router import router as public_assistants_router
 from intric.completion_models.presentation.completion_models_router import (
     router as completion_models_router,
 )
@@ -114,6 +115,9 @@ router.include_router(info_blobs_router, prefix="/info-blobs", tags=["info-blobs
 router.include_router(groups_router, prefix="/groups", tags=["groups"])
 router.include_router(settings_router, prefix="/settings", tags=["settings"])
 router.include_router(assistants_router, prefix="/assistants", tags=["assistants"])
+router.include_router(
+    public_assistants_router, prefix="/public/assistants", tags=["public-assistants"]
+)
 router.include_router(group_chat_router, prefix="/group-chats", tags=["group-chats"])
 router.include_router(
     conversations_router, prefix="/conversations", tags=["conversations"]

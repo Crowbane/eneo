@@ -414,6 +414,8 @@ class AssistantRepository:
                 data_retention_days=assistant.data_retention_days,
                 metadata_json=assistant.metadata_json,
                 icon_id=assistant.icon_id,
+                public_sharing_enabled=assistant.public_sharing_enabled,
+                public_sharing_token=assistant.public_sharing_token,
             )
             .where(Assistants.id == assistant.id)
             .returning(Assistants)
@@ -436,3 +438,13 @@ class AssistantRepository:
 
         if assistant.prompt:
             await self._add_prompt(assistant_id=entry_in_db.id, prompt=assistant.prompt)
+
+    async def get_by_public_sharing_token(self, token: UUID) -> Assistants | None:
+        query = (
+            sa.select(Assistants)
+            .where(Assistants.public_sharing_token == token)
+            .where(Assistants.public_sharing_enabled.is_(True))
+            .where(Assistants.published.is_(True))
+        )
+
+        return await self.get_record_with_options(query)

@@ -267,6 +267,7 @@ class AssistantSparse(ResourcePermissionsMixin, AssistantBase, InDB):
         default=None,
         description="ID of the completion model, or None if not configured",
     )
+    public_sharing_enabled: bool = False
 
 
 class AssistantPublic(InDB, ResourcePermissionsMixin):
@@ -316,6 +317,21 @@ class AssistantPublic(InDB, ResourcePermissionsMixin):
         default=None,
         description="Metadata for the assistant",
     )
+    public_sharing_enabled: bool = False
+    public_sharing_token: Optional[UUID] = None
+
+
+class PublicAssistantView(BaseModel):
+    """Minimal assistant info for public (unauthenticated) access."""
+    name: str
+    description: Optional[str] = None
+    icon_id: Optional[UUID] = None
+
+
+class PublicAskRequest(BaseModel):
+    """Request model for public assistant chat."""
+    question: str
+    stream: bool = True
 
 
 class DefaultAssistant(AssistantPublic):

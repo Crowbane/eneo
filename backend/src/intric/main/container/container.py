@@ -41,6 +41,7 @@ from intric.assistants.api.assistant_assembler import AssistantAssembler
 from intric.assistants.assistant_factory import AssistantFactory
 from intric.assistants.assistant_repo import AssistantRepository
 from intric.assistants.assistant_service import AssistantService
+from intric.assistants.public_assistant_service import PublicAssistantService
 from intric.assistants.references import ReferencesService
 from intric.authentication.api_key_repo import ApiKeysRepository
 from intric.authentication.auth_service import AuthService
@@ -1019,6 +1020,10 @@ class Container(containers.DeclarativeContainer):
         completion_service=completion_service,
         references_service=references_service,
         icon_repo=icon_repo,
+    )
+    public_assistant_service = providers.Factory(
+        PublicAssistantService,
+        session=session,
     )
     group_chat_service = providers.Factory(
         GroupChatService,

@@ -81,6 +81,8 @@ class AssistantFactory:
             data_retention_days=data_retention_days,
             metadata_json=metadata_json,
             description=description,
+            public_sharing_enabled=False,
+            public_sharing_token=None,
         )
 
     def create_assistant_from_db(
@@ -142,6 +144,8 @@ class AssistantFactory:
             description=assistant_in_db.description,
             insight_enabled=assistant_in_db.insight_enabled,
             icon_id=assistant_in_db.icon_id,
+            public_sharing_enabled=assistant_in_db.public_sharing_enabled,
+            public_sharing_token=assistant_in_db.public_sharing_token,
         )
 
     def create_space_assistant_from_db(
@@ -231,4 +235,6 @@ class AssistantFactory:
             data_retention_days=assistant_in_db.data_retention_days,
             metadata_json=assistant_in_db.metadata_json,
             icon_id=assistant_in_db.icon_id,
+            public_sharing_enabled=assistant_in_db.public_sharing_enabled,
+            public_sharing_token=assistant_in_db.public_sharing_token,
         )

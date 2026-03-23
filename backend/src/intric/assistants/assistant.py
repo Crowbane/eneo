@@ -69,6 +69,8 @@ class Assistant(Entity):
         data_retention_days: Optional[int] = None,
         metadata_json: Optional[dict] = {},
         icon_id: Optional[UUID] = None,
+        public_sharing_enabled: bool = False,
+        public_sharing_token: Optional[UUID] = None,
     ):
         super().__init__(id=id, created_at=created_at, updated_at=updated_at)
 
@@ -96,6 +98,8 @@ class Assistant(Entity):
         self.type = AssistantType.DEFAULT_ASSISTANT if is_default else AssistantType.ASSISTANT
         self._metadata_json = metadata_json
         self.icon_id = icon_id
+        self.public_sharing_enabled = public_sharing_enabled
+        self.public_sharing_token = public_sharing_token
 
         # Temporary attributes for update flow - not persisted directly
         self._mcp_server_ids: list[UUID] | None = None
@@ -237,6 +241,8 @@ class Assistant(Entity):
         data_retention_days: Union[int, None, NotProvided] = NOT_PROVIDED,
         metadata_json: Union[dict, None, NotProvided] = NOT_PROVIDED,
         icon_id: Union[UUID, None, NotProvided] = NOT_PROVIDED,
+        public_sharing_enabled: bool | None = None,
+        public_sharing_token: Union[UUID, None, NotProvided] = NOT_PROVIDED,
     ):
         if name is not None:
             self.name = name
@@ -281,6 +287,12 @@ class Assistant(Entity):
 
         if icon_id is not NOT_PROVIDED:
             self.icon_id = icon_id
+
+        if public_sharing_enabled is not None:
+            self.public_sharing_enabled = public_sharing_enabled
+
+        if public_sharing_token is not NOT_PROVIDED:
+            self.public_sharing_token = public_sharing_token
 
     def get_prompt_text(self):
         if self.prompt is not None:

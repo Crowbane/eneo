@@ -147,6 +147,8 @@ class AssistantAssembler:
             metadata_json=assistant.metadata_json,
             model_info=model_info,
             icon_id=assistant.icon_id,
+            public_sharing_enabled=assistant.public_sharing_enabled,
+            public_sharing_token=assistant.public_sharing_token,
         )
 
     def from_assistant_to_default_assistant_model(

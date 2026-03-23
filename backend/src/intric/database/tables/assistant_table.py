@@ -51,6 +51,8 @@ class Assistants(BasePublic):
     icon_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey(Icons.id, ondelete="SET NULL"), nullable=True
     )
+    public_sharing_enabled: Mapped[bool] = mapped_column(default=False)
+    public_sharing_token: Mapped[Optional[UUID]] = mapped_column(nullable=True, unique=True)
 
     # relationships
     groups: Mapped[list[CollectionsTable]] = relationship(

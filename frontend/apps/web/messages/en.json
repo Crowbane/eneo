@@ -2287,5 +2287,22 @@
   "updated_at": "Updated {time}",
   "days_range": "{days} days: {start}–{end}",
   "no_activity_title": "No activity",
-  "no_activity_description": "No conversations were recorded during the selected time period. Try selecting a different date range."
+  "no_activity_description": "No conversations were recorded during the selected time period. Try selecting a different date range.",
+  "public_sharing": "Public sharing",
+  "public_sharing_description": "Share this assistant publicly. Anyone with the link can chat with the assistant. No history stored.",
+  "public_sharing_enabled": "Public sharing enabled",
+  "public_sharing_disabled": "Public sharing disabled",
+  "enable_public_sharing": "Enable public sharing",
+  "disable_public_sharing": "Disable public sharing",
+  "copy_public_link": "Copy public link",
+  "public_link_copied": "Link copied!",
+  "embed_iframe": "Embed (iframe)",
+  "embed_javascript": "Embed (JavaScript)",
+  "copy_embed_code": "Copy embed code",
+  "embed_code_copied": "Code copied!",
+  "publish_first_for_public_sharing": "Publish the assistant first to enable public sharing.",
+  "powered_by_eneo": "Powered by Eneo",
+  "public_chat_placeholder": "Type your message...",
+  "public_link": "Public link",
+  "embed_code": "Embed code"
 }

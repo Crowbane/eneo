@@ -816,6 +816,41 @@ class AssistantService:
 
         return assistant, permissions
 
+    async def toggle_public_sharing(self, assistant_id: UUID, enable: bool):
+        space = await self.space_repo.get_space_by_assistant(assistant_id=assistant_id)
+        assistant = space.get_assistant(assistant_id=assistant_id)
+        actor = self.actor_manager.get_space_actor_from_space(space=space)
+
+        if not actor.can_publish_assistants():
+            raise UnauthorizedException()
+
+        if space.is_personal():
+            raise BadRequestException("Public sharing is only available for shared spaces.")
+
+        if enable:
+            if not assistant.published:
+                raise BadRequestException(
+                    "Assistant must be published before enabling public sharing."
+                )
+            # Generate a new token if none exists
+            if not assistant.public_sharing_token:
+                from uuid import uuid4
+
+                assistant.update(
+                    public_sharing_enabled=True,
+                    public_sharing_token=uuid4(),
+                )
+            else:
+                assistant.update(public_sharing_enabled=True)
+        else:
+            assistant.update(public_sharing_enabled=False)
+
+        refreshed_space = await self.space_repo.update(space)
+        assistant = refreshed_space.get_assistant(assistant_id=assistant_id)
+        permissions = actor.get_assistant_permissions(assistant=assistant)
+
+        return assistant, permissions
+
     async def get_assistant_mcp_servers(self, assistant_id: UUID):
         """Get all MCP servers associated with an assistant."""
         space = await self.space_repo.get_space_by_assistant(assistant_id=assistant_id)

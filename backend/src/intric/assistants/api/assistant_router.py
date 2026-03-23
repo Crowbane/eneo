@@ -988,6 +988,57 @@ async def publish_assistant(
 
 
 @router.post(
+    "/{id}/public-sharing/",
+    response_model=AssistantPublic,
+    responses=responses.get_responses([400, 403, 404]),
+)
+async def toggle_public_sharing(
+    id: UUID,
+    enabled: bool,
+    container: Container = Depends(get_container(with_user=True)),
+):
+    service = container.assistant_service()
+    assembler = container.assistant_assembler()
+    user = container.user()
+
+    assistant, permissions = await service.toggle_public_sharing(
+        assistant_id=id, enable=enabled
+    )
+
+    # Get space for context
+    space = None
+    if assistant.space_id:
+        try:
+            space_service = container.space_service()
+            space = await space_service.get_space(assistant.space_id)
+        except Exception:
+            space = None
+
+    extra = {
+        "public_sharing_enabled": enabled,
+        "action": "enabled" if enabled else "disabled",
+    }
+
+    audit_service = container.audit_service()
+    await audit_service.log_async(
+        tenant_id=user.tenant_id,
+        actor_id=user.id,
+        action=ActionType.ASSISTANT_PUBLISHED,
+        entity_type=EntityType.ASSISTANT,
+        entity_id=id,
+        description=f"{'Enabled' if enabled else 'Disabled'} public sharing for assistant '{assistant.name}'",
+        metadata=AuditMetadata.standard(
+            actor=user,
+            target=assistant,
+            space=space,
+            extra=extra,
+        ),
+    )
+
+    return assembler.from_assistant_to_model(assistant=assistant, permissions=permissions)
+
+
+@router.post(
     "/{id}/token-estimate",
     response_model=TokenEstimateResponse,
     responses=responses.get_responses([400, 404]),

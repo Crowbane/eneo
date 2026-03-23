@@ -2322,5 +2322,22 @@
   "updated_at": "Uppdaterad {time}",
   "days_range": "{days} dagar: {start}–{end}",
   "no_activity_title": "Ingen aktivitet",
-  "no_activity_description": "Inga konversationer registrerades under vald tidsperiod. Prova att välja ett annat datumintervall."
+  "no_activity_description": "Inga konversationer registrerades under vald tidsperiod. Prova att välja ett annat datumintervall.",
+  "public_sharing": "Offentlig delning",
+  "public_sharing_description": "Dela denna assistent offentligt. Alla med länken kan chatta med assistenten. Ingen historik sparas.",
+  "public_sharing_enabled": "Offentlig delning aktiverad",
+  "public_sharing_disabled": "Offentlig delning inaktiverad",
+  "enable_public_sharing": "Aktivera offentlig delning",
+  "disable_public_sharing": "Inaktivera offentlig delning",
+  "copy_public_link": "Kopiera offentlig länk",
+  "public_link_copied": "Länk kopierad!",
+  "embed_iframe": "Bädda in (iframe)",
+  "embed_javascript": "Bädda in (JavaScript)",
+  "copy_embed_code": "Kopiera inbäddningskod",
+  "embed_code_copied": "Kod kopierad!",
+  "publish_first_for_public_sharing": "Publicera assistenten först för att aktivera offentlig delning.",
+  "powered_by_eneo": "Drivs av Eneo",
+  "public_chat_placeholder": "Skriv ditt meddelande...",
+  "public_link": "Offentlig länk",
+  "embed_code": "Inbäddningskod"
 }

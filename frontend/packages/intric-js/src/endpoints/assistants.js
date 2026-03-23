@@ -339,6 +339,42 @@ export function initAssistants(client) {
           }
         }
       });
+    },
+
+    /**
+     * Enable public sharing for an assistant
+     * @param  {{id: string} | Assistant} assistant
+     * @returns {Promise<Assistant>}
+     * */
+    enablePublicSharing: async (assistant) => {
+      const { id } = assistant;
+      const res = await client.fetch("/api/v1/assistants/{id}/public-sharing/", {
+        method: "post",
+        params: {
+          path: { id },
+          query: { enabled: true }
+        }
+      });
+
+      return res;
+    },
+
+    /**
+     * Disable public sharing for an assistant
+     * @param  {{id: string} | Assistant} assistant
+     * @returns {Promise<Assistant>}
+     * */
+    disablePublicSharing: async (assistant) => {
+      const { id } = assistant;
+      const res = await client.fetch("/api/v1/assistants/{id}/public-sharing/", {
+        method: "post",
+        params: {
+          path: { id },
+          query: { enabled: false }
+        }
+      });
+
+      return res;
     }
   };
 }
