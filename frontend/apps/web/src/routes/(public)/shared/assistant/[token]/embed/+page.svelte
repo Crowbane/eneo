@@ -1,5 +1,10 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import { fly } from "svelte/transition";
+  import { Markdown } from "@intric/ui";
+  import EneoWordMark from "$lib/assets/EneoWordMark.svelte";
+  import { IconEnter } from "@intric/icons/enter";
+  import { IconStopCircle } from "@intric/icons/stop-circle";
   import { m } from "$lib/paraglide/messages";
 
   let { data } = $props();
@@ -7,17 +12,29 @@
   type Message = {
     role: "user" | "assistant";
     content: string;
+    id: number;
   };
 
+  let messageId = 0;
   let messages = $state<Message[]>([]);
   let input = $state("");
   let isStreaming = $state(false);
-  let messagesContainer: HTMLDivElement | undefined = $state();
+  let scrollContainer: HTMLDivElement | undefined = $state();
+  let abortController: AbortController | undefined;
+  let textareaEl: HTMLTextAreaElement | undefined = $state();
 
   function scrollToBottom() {
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (scrollContainer) {
+      setTimeout(() => {
+        scrollContainer!.scrollTo({ top: scrollContainer!.scrollHeight, behavior: "smooth" });
+      }, 10);
     }
+  }
+
+  function autoResize() {
+    if (!textareaEl) return;
+    textareaEl.style.height = "auto";
+    textareaEl.style.height = Math.min(textareaEl.scrollHeight, 120) + "px";
   }
 
   async function sendMessage() {
@@ -25,12 +42,17 @@
     if (!question || isStreaming) return;
 
     input = "";
-    messages.push({ role: "user", content: question });
-    messages.push({ role: "assistant", content: "" });
+    if (textareaEl) {
+      textareaEl.style.height = "auto";
+    }
+    messages.push({ role: "user", content: question, id: messageId++ });
+    messages.push({ role: "assistant", content: "", id: messageId++ });
     isStreaming = true;
 
     await tick();
     scrollToBottom();
+
+    abortController = new AbortController();
 
     try {
       const res = await fetch(
@@ -41,7 +63,8 @@
             "Content-Type": "application/json",
             Accept: "text/event-stream"
           },
-          body: JSON.stringify({ question, stream: true })
+          body: JSON.stringify({ question, stream: true }),
+          signal: abortController.signal
         }
       );
 
@@ -80,13 +103,19 @@
           }
         }
       }
-    } catch {
-      if (!messages[messages.length - 1].content) {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        // User cancelled
+      } else if (!messages[messages.length - 1].content) {
         messages[messages.length - 1].content = "Sorry, something went wrong.";
       }
     }
 
     isStreaming = false;
+    abortController = undefined;
+
+    await tick();
+    textareaEl?.focus();
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -95,77 +124,161 @@
       sendMessage();
     }
   }
+
+  const isAskingDisabled = $derived(input.trim() === "");
 </script>
 
 <svelte:head>
   <title>{data.assistant.name}</title>
 </svelte:head>
 
-<div class="flex h-full flex-col" style="margin: 0; padding: 0;">
-  <!-- Compact header -->
-  <header class="border-default flex items-center gap-2 border-b px-3 py-2">
+<div class="embed-container flex h-full flex-col">
+  <!-- Header -->
+  <header class="border-default flex items-center gap-2.5 border-b px-3 py-2.5">
     {#if data.assistant.icon_id}
       <img
         src="{data.baseUrl}/api/v1/icons/{data.assistant.icon_id}/"
         alt=""
-        class="h-7 w-7 rounded-md object-cover"
+        class="h-8 w-8 shrink-0 rounded-lg object-cover"
       />
     {/if}
-    <h1 class="text-primary text-sm font-semibold">{data.assistant.name}</h1>
+    <h1 class="text-primary min-w-0 flex-1 truncate text-sm font-semibold">{data.assistant.name}</h1>
+    <a href="/" target="_blank" rel="noopener" class="shrink-0 opacity-50 transition-opacity hover:opacity-100" aria-label="Eneo">
+      <EneoWordMark class="text-brand-intric h-4 w-14" />
+    </a>
   </header>
 
   <!-- Messages -->
-  <div class="flex-1 overflow-y-auto px-3 py-3" bind:this={messagesContainer}>
-    <div class="space-y-3">
-      {#if messages.length === 0}
-        <div class="text-muted flex flex-col items-center justify-center py-10 text-center">
-          <p class="text-sm font-medium">{data.assistant.name}</p>
-          {#if data.assistant.description}
-            <p class="mt-1 text-xs">{data.assistant.description}</p>
+  <div
+    class="flex min-h-0 flex-1 flex-col overflow-y-auto"
+    bind:this={scrollContainer}
+  >
+    {#if messages.length > 0}
+      <div class="flex flex-grow flex-col gap-1.5 p-3 md:p-5" aria-live="polite">
+        {#each messages as message, idx (message.id)}
+          {@const isLast = idx === messages.length - 1}
+          <div class="mx-auto flex w-full max-w-[71ch] flex-col gap-3">
+            {#if message.role === "user"}
+              <div
+                in:fly={{ duration: 500, y: 60 }}
+                class="prose bg-secondary max-w-full self-end rounded-3xl rounded-br-none px-5 py-3 break-words md:max-w-[85%]"
+              >
+                <p class="m-0 text-[0.9375rem] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              </div>
+            {:else}
+              <div class="relative pt-3 text-[0.9375rem] leading-relaxed">
+                {#if message.content}
+                  <Markdown source={message.content} />
+                {/if}
+                {#if isStreaming && isLast && !message.content}
+                  <div class="flex items-center gap-2 py-1.5" role="status" aria-label={m.assistant_is_typing()}>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot" style="animation-delay: 700ms"></span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {:else}
+      <div class="flex flex-grow flex-col items-center justify-center px-4">
+        <div class="flex flex-col items-center gap-3 text-center">
+          {#if data.assistant.icon_id}
+            <img
+              src="{data.baseUrl}/api/v1/icons/{data.assistant.icon_id}/"
+              alt=""
+              class="h-14 w-14 rounded-xl object-cover shadow-sm"
+            />
           {/if}
-        </div>
-      {/if}
-
-      {#each messages as message}
-        <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
-          <div
-            class="max-w-[85%] rounded-xl px-3 py-1.5 {message.role === 'user'
-              ? 'bg-primary text-on-fill'
-              : 'bg-hover-overlay text-primary'}"
-          >
-            <p class="whitespace-pre-wrap text-sm">{message.content}{#if isStreaming && message === messages[messages.length - 1] && message.role === 'assistant'}<span class="animate-pulse">▊</span>{/if}</p>
+          <div>
+            <p class="text-primary text-sm font-semibold">{data.assistant.name}</p>
+            {#if data.assistant.description}
+              <p class="text-muted mt-1 max-w-[36ch] text-xs leading-relaxed">{data.assistant.description}</p>
+            {/if}
           </div>
         </div>
-      {/each}
-    </div>
+      </div>
+    {/if}
   </div>
 
-  <!-- Input -->
-  <div class="border-default border-t px-3 py-2">
-    <div class="flex gap-2">
+  <!-- Input area -->
+  <div class="flex flex-col items-center gap-1 bg-gradient-to-b from-transparent to-[var(--background-primary)] px-2.5 pt-0 pb-1.5 md:px-4">
+    <form
+      class="border-default bg-primary ring-dimmer relative flex w-full max-w-[74ch] flex-col rounded-xl border p-1 shadow-md ring-offset-0 transition-all duration-300 focus-within:border-stronger hover:border-stronger focus-within:shadow-lg hover:ring-4"
+      onsubmit={(e) => { e.preventDefault(); sendMessage(); }}
+    >
       <textarea
-        class="bg-secondary border-default text-primary placeholder:text-muted min-h-[38px] flex-1 resize-none rounded-lg border px-3 py-2 text-sm focus:outline-none"
+        bind:this={textareaEl}
+        class="text-primary placeholder:text-muted w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed focus:outline-none"
         placeholder={m.public_chat_placeholder()}
         rows={1}
         bind:value={input}
         onkeydown={handleKeydown}
-        disabled={isStreaming}
+        oninput={autoResize}
       ></textarea>
-      <button
-        aria-label="Send message"
-        class="bg-primary text-on-fill flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg transition-opacity disabled:opacity-40"
-        onclick={sendMessage}
-        disabled={!input.trim() || isStreaming}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-        </svg>
-      </button>
+
+      <div class="flex justify-end">
+        {#if isStreaming}
+          <button
+            type="button"
+            aria-label={m.cancel_your_request()}
+            onclick={() => abortController?.abort("User cancelled")}
+            class="bg-secondary hover:bg-hover-stronger flex h-8 items-center justify-center gap-1 rounded-lg pr-1 pl-2 text-sm transition-colors"
+          >
+            {m.stop_answer()}
+            <IconStopCircle />
+          </button>
+        {:else}
+          <button
+            disabled={isAskingDisabled}
+            aria-label={m.submit_your_question()}
+            type="submit"
+            class="bg-secondary hover:bg-hover-stronger disabled:bg-tertiary disabled:text-secondary flex h-8 items-center justify-center gap-1 rounded-lg pr-1 pl-2 text-sm transition-colors"
+          >
+            {m.send()}
+            <IconEnter />
+          </button>
+        {/if}
+      </div>
+    </form>
+
+    <div class="flex items-center justify-center pb-0.5 opacity-30">
+      <EneoWordMark class="text-brand-intric h-3 w-12" />
     </div>
   </div>
-
-  <!-- Compact footer -->
-  <footer class="text-muted pb-1.5 text-center text-[10px]">
-    {m.powered_by_eneo()}
-  </footer>
 </div>
+
+<style lang="postcss">
+  @reference "@intric/ui/styles";
+
+  .embed-container {
+    background: var(--background-primary);
+    margin: 0;
+    padding: 0;
+  }
+
+  @keyframes typing-breathe {
+    0%,
+    100% {
+      transform: scale(1) translateX(0);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scale(1.15) translateX(2px);
+      opacity: 1;
+    }
+  }
+
+  .typing-dot {
+    @apply bg-accent-stronger h-2 w-2 rounded-full;
+    animation: typing-breathe 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing-dot {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
+</style>

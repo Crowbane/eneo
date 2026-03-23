@@ -19,7 +19,7 @@ export const GET: RequestHandler = ({ params, url }) => {
     width: '56px',
     height: '56px',
     borderRadius: '50%',
-    background: '#1a1a2e',
+    background: '#055594',
     color: '#fff',
     border: 'none',
     cursor: 'pointer',

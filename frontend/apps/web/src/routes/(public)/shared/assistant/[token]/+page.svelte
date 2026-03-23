@@ -1,4 +1,11 @@
 <script lang="ts">
+  import { tick } from "svelte";
+  import { fade, fly } from "svelte/transition";
+  import { Markdown } from "@intric/ui";
+  import EneoWordMark from "$lib/assets/EneoWordMark.svelte";
+  import { IconEnter } from "@intric/icons/enter";
+  import { IconStopCircle } from "@intric/icons/stop-circle";
+  import { IconArrowDownToLine } from "@intric/icons/arrow-down-to-line";
   import { m } from "$lib/paraglide/messages";
 
   let { data } = $props();
@@ -6,17 +13,38 @@
   type Message = {
     role: "user" | "assistant";
     content: string;
+    id: number;
   };
 
+  let messageId = 0;
   let messages = $state<Message[]>([]);
   let input = $state("");
   let isStreaming = $state(false);
-  let messagesContainer: HTMLDivElement | undefined = $state();
+  let scrollContainer: HTMLDivElement | undefined = $state();
+  let showScrollToBottom = $state(false);
+  let abortController: AbortController | undefined;
+  let textareaEl: HTMLTextAreaElement | undefined = $state();
+
+  function handleScroll() {
+    if (!scrollContainer) return;
+    const bottomThreshold = 150;
+    const distanceFromBottom =
+      scrollContainer.scrollHeight - scrollContainer.clientHeight - scrollContainer.scrollTop;
+    showScrollToBottom = distanceFromBottom > bottomThreshold;
+  }
 
   function scrollToBottom() {
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (scrollContainer) {
+      setTimeout(() => {
+        scrollContainer!.scrollTo({ top: scrollContainer!.scrollHeight, behavior: "smooth" });
+      }, 10);
     }
+  }
+
+  function autoResize() {
+    if (!textareaEl) return;
+    textareaEl.style.height = "auto";
+    textareaEl.style.height = Math.min(textareaEl.scrollHeight, 200) + "px";
   }
 
   async function sendMessage() {
@@ -24,13 +52,17 @@
     if (!question || isStreaming) return;
 
     input = "";
-    messages.push({ role: "user", content: question });
-    messages.push({ role: "assistant", content: "" });
+    if (textareaEl) {
+      textareaEl.style.height = "auto";
+    }
+    messages.push({ role: "user", content: question, id: messageId++ });
+    messages.push({ role: "assistant", content: "", id: messageId++ });
     isStreaming = true;
 
-    // Trigger scroll after DOM update
     await tick();
     scrollToBottom();
+
+    abortController = new AbortController();
 
     try {
       const res = await fetch(
@@ -41,7 +73,8 @@
             "Content-Type": "application/json",
             Accept: "text/event-stream"
           },
-          body: JSON.stringify({ question, stream: true })
+          body: JSON.stringify({ question, stream: true }),
+          signal: abortController.signal
         }
       );
 
@@ -80,13 +113,19 @@
           }
         }
       }
-    } catch {
-      if (!messages[messages.length - 1].content) {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        // User cancelled
+      } else if (!messages[messages.length - 1].content) {
         messages[messages.length - 1].content = "Sorry, something went wrong.";
       }
     }
 
     isStreaming = false;
+    abortController = undefined;
+
+    await tick();
+    textareaEl?.focus();
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -96,83 +135,203 @@
     }
   }
 
-  import { tick } from "svelte";
+  const isAskingDisabled = $derived(input.trim() === "");
 </script>
 
 <svelte:head>
   <title>{data.assistant.name}</title>
 </svelte:head>
 
-<div class="flex h-full flex-col">
-  <!-- Header -->
-  <header class="border-default flex items-center gap-3 border-b px-6 py-4">
-    {#if data.assistant.icon_id}
-      <img
-        src="{data.baseUrl}/api/v1/icons/{data.assistant.icon_id}/"
-        alt=""
-        class="h-10 w-10 rounded-lg object-cover"
-      />
-    {/if}
-    <div>
-      <h1 class="text-primary text-lg font-semibold">{data.assistant.name}</h1>
-      {#if data.assistant.description}
-        <p class="text-muted text-sm">{data.assistant.description}</p>
+<div class="mx-auto flex h-full w-full max-w-[960px] flex-col p-0 md:px-4 md:py-3">
+  <div
+    class="chat-container relative flex min-h-0 flex-1 flex-col overflow-hidden md:rounded-xl"
+  >
+    <!-- Header -->
+    <header class="border-default z-10 flex items-center gap-3 border-b px-4 py-3 md:px-6 md:py-4">
+      {#if data.assistant.icon_id}
+        <img
+          src="{data.baseUrl}/api/v1/icons/{data.assistant.icon_id}/"
+          alt=""
+          class="h-10 w-10 shrink-0 rounded-lg object-cover"
+        />
       {/if}
-    </div>
-  </header>
+      <div class="min-w-0 flex-1">
+        <h1 class="text-primary truncate text-lg font-semibold">{data.assistant.name}</h1>
+        {#if data.assistant.description}
+          <p class="text-muted truncate text-sm">{data.assistant.description}</p>
+        {/if}
+      </div>
+      <a href="/" class="shrink-0 opacity-60 transition-opacity hover:opacity-100" aria-label="Eneo">
+        <EneoWordMark class="text-brand-intric h-5 w-20" />
+      </a>
+    </header>
 
-  <!-- Messages -->
-  <div class="flex-1 overflow-y-auto px-4 py-6" bind:this={messagesContainer}>
-    <div class="mx-auto max-w-2xl space-y-4">
-      {#if messages.length === 0}
-        <div class="text-muted flex flex-col items-center justify-center py-20 text-center">
-          <p class="text-lg font-medium">{data.assistant.name}</p>
-          {#if data.assistant.description}
-            <p class="mt-1 text-sm">{data.assistant.description}</p>
-          {/if}
+    <!-- Scrollable message area -->
+    <div
+      class="relative flex min-h-0 flex-1 flex-col overflow-y-auto"
+      bind:this={scrollContainer}
+      onscroll={handleScroll}
+    >
+      {#if messages.length > 0}
+        <div
+          class="flex flex-grow flex-col gap-2 p-4 md:p-8"
+          aria-live="polite"
+        >
+          {#each messages as message, idx (message.id)}
+            {@const isLast = idx === messages.length - 1}
+            <div class="mx-auto flex w-full max-w-[71ch] flex-col gap-4">
+              {#if message.role === "user"}
+                <div
+                  in:fly={{ duration: 700, y: 100 }}
+                  class="prose bg-secondary max-w-full self-end rounded-3xl rounded-br-none px-8 py-4 break-words md:max-w-[85%]"
+                >
+                  <p class="m-0 text-lg whitespace-pre-wrap">{message.content}</p>
+                </div>
+              {:else}
+                <div class="relative pt-4 text-lg">
+                  {#if message.content}
+                    <Markdown source={message.content} />
+                  {/if}
+                  {#if isStreaming && isLast && !message.content}
+                    <div class="flex items-center gap-2 py-2" role="status" aria-label={m.assistant_is_typing()}>
+                      <span class="typing-dot"></span>
+                      <span class="typing-dot" style="animation-delay: 700ms"></span>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {/each}
         </div>
-      {/if}
-
-      {#each messages as message}
-        <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
-          <div
-            class="max-w-[80%] rounded-2xl px-4 py-2 {message.role === 'user'
-              ? 'bg-primary text-on-fill'
-              : 'bg-hover-overlay text-primary'}"
-          >
-            <p class="whitespace-pre-wrap text-sm">{message.content}{#if isStreaming && message === messages[messages.length - 1] && message.role === 'assistant'}<span class="animate-pulse">▊</span>{/if}</p>
+      {:else}
+        <div class="flex flex-grow flex-col items-center justify-center px-4">
+          <div class="flex max-w-[50ch] flex-col items-center gap-5 text-center">
+            {#if data.assistant.icon_id}
+              <img
+                src="{data.baseUrl}/api/v1/icons/{data.assistant.icon_id}/"
+                alt=""
+                class="h-20 w-20 rounded-2xl object-cover shadow-sm"
+              />
+            {/if}
+            <div>
+              <h2 class="text-primary text-xl font-semibold">{data.assistant.name}</h2>
+              {#if data.assistant.description}
+                <div class="text-secondary mt-2">
+                  <Markdown
+                    class="*:m-0 [&_p]:text-center"
+                    source={data.assistant.description}
+                  />
+                </div>
+              {/if}
+            </div>
           </div>
         </div>
-      {/each}
+      {/if}
     </div>
-  </div>
 
-  <!-- Input -->
-  <div class="border-default border-t px-4 py-3">
-    <div class="mx-auto flex max-w-2xl gap-2">
-      <textarea
-        class="bg-secondary border-default text-primary placeholder:text-muted min-h-[44px] flex-1 resize-none rounded-xl border px-4 py-2.5 text-sm focus:outline-none"
-        placeholder={m.public_chat_placeholder()}
-        rows={1}
-        bind:value={input}
-        onkeydown={handleKeydown}
-        disabled={isStreaming}
-      ></textarea>
-      <button
-        aria-label="Send message"
-        class="bg-primary text-on-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-opacity disabled:opacity-40"
-        onclick={sendMessage}
-        disabled={!input.trim() || isStreaming}
+    <!-- Input area (outside scroll container) -->
+    <div
+      class="relative flex flex-col items-center gap-2 border-t border-transparent px-2 pt-2 pb-2 md:gap-3 md:px-6 md:pb-4"
+    >
+      {#if showScrollToBottom}
+        <div transition:fade={{ duration: 150 }} class="absolute -top-12 left-1/2 -translate-x-1/2">
+          <button
+            class="border-stronger bg-primary ring-default hover:bg-secondary flex gap-1 rounded-full border px-1.5 py-1.5 shadow-lg ring-offset-0 hover:ring-2"
+            onclick={scrollToBottom}
+            aria-label={m.scroll_to_bottom()}
+          >
+            <IconArrowDownToLine />
+          </button>
+        </div>
+      {/if}
+
+      <form
+        class="border-default bg-primary ring-dimmer relative flex w-full max-w-[74ch] flex-col rounded-xl border p-1.5 shadow-md ring-offset-0 transition-all duration-300 focus-within:border-stronger hover:border-stronger focus-within:shadow-lg hover:ring-4"
+        onsubmit={(e) => { e.preventDefault(); sendMessage(); }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-        </svg>
-      </button>
+        <textarea
+          bind:this={textareaEl}
+          class="text-primary placeholder:text-muted w-full resize-none bg-transparent px-3 py-2.5 text-base leading-relaxed focus:outline-none"
+          placeholder={m.public_chat_placeholder()}
+          rows={1}
+          bind:value={input}
+          onkeydown={handleKeydown}
+          oninput={autoResize}
+        ></textarea>
+
+        <div class="mt-1 flex justify-end">
+          {#if isStreaming}
+            <button
+              type="button"
+              aria-label={m.cancel_your_request()}
+              onclick={() => abortController?.abort("User cancelled")}
+              class="bg-secondary hover:bg-hover-stronger flex h-9 items-center justify-center gap-1 rounded-lg pr-1 pl-2 transition-colors"
+            >
+              {m.stop_answer()}
+              <IconStopCircle />
+            </button>
+          {:else}
+            <button
+              disabled={isAskingDisabled}
+              aria-label={m.submit_your_question()}
+              type="submit"
+              class="bg-secondary hover:bg-hover-stronger disabled:bg-tertiary disabled:text-secondary flex h-9 items-center justify-center gap-1 rounded-lg pr-1 pl-2 transition-colors"
+            >
+              {m.send()}
+              <IconEnter />
+            </button>
+          {/if}
+        </div>
+      </form>
+
+      <div class="flex items-center justify-center opacity-40">
+        <EneoWordMark class="text-brand-intric h-4 w-16" />
+      </div>
     </div>
   </div>
-
-  <!-- Footer -->
-  <footer class="text-muted px-4 pb-3 text-center text-xs">
-    {m.powered_by_eneo()}
-  </footer>
 </div>
+
+<style lang="postcss">
+  @reference "@intric/ui/styles";
+
+  .chat-container {
+    background: var(--background-primary);
+    border: 0.5px solid var(--border-stronger);
+    box-shadow:
+      0px 18px 12px 2px rgba(0, 0, 0, 0.12),
+      0px 0px 14px 2px rgba(0, 0, 0, 0.09);
+  }
+
+  @media (max-width: 767px) {
+    .chat-container {
+      border-left: 0;
+      border-right: 0;
+      border-bottom: 0;
+      border-radius: 0;
+    }
+  }
+
+  @keyframes typing-breathe {
+    0%,
+    100% {
+      transform: scale(1) translateX(0);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scale(1.15) translateX(2px);
+      opacity: 1;
+    }
+  }
+
+  .typing-dot {
+    @apply bg-accent-stronger h-2 w-2 rounded-full;
+    animation: typing-breathe 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing-dot {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
+</style>
